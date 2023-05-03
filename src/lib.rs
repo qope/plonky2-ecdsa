@@ -1,5 +1,5 @@
 #![allow(clippy::needless_range_loop)]
-#![cfg_attr(not(test), no_std)]
+// #![cfg_attr(not(test), no_std)]
 
 extern crate alloc;
 
@@ -35,6 +35,32 @@ mod tests {
         let a_t = builder.constant_nonnative(a);
         let b_t = builder.constant_nonnative(b);
         let _c_t = builder.mul_nonnative(&a_t, &b_t);
+
+        let data = builder.build::<C>();
+        let proof = data.prove(pw).unwrap();
+        data.verify(proof).unwrap();
+    }
+
+    #[test]
+    fn test_add_to_zero() {
+        const D: usize = 2;
+        type C = PoseidonGoldilocksConfig;
+        type F = <C as GenericConfig<D>>::F;
+        let config = CircuitConfig::standard_ecc_config();
+
+        let pw = PartialWitness::<F>::new();
+        let mut builder = CircuitBuilder::<F, D>::new(config);
+
+        let a = Secp256K1Base::ONE;
+        let b = Secp256K1Base::NEG_ONE;
+
+        let a_t = builder.constant_nonnative(a);
+        let b_t = builder.constant_nonnative(b);
+        let c_t = builder.add_nonnative(&a_t, &b_t);
+
+        let zero_t = builder.constant_nonnative(Secp256K1Base::ZERO);
+
+        builder.connect_nonnative(&c_t, &zero_t);
 
         let data = builder.build::<C>();
         let proof = data.prove(pw).unwrap();
