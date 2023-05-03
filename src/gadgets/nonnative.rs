@@ -21,7 +21,7 @@ use crate::gadgets::biguint::{
 
 #[derive(Clone, Debug)]
 pub struct NonNativeTarget<FF: Field> {
-    pub(crate) value: BigUintTarget,
+    pub value: BigUintTarget,
     pub(crate) _phantom: PhantomData<FF>,
 }
 
