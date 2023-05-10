@@ -30,7 +30,7 @@ impl BigUintTarget {
 }
 
 pub trait CircuitBuilderBiguint<F: RichField + Extendable<D>, const D: usize> {
-    fn constant_biguint(&mut self, value: &BigUint) -> BigUintTarget;
+    fn constant_biguint(&mut self, value: &BigUint, min_limbs: usize) -> BigUintTarget;
 
     fn zero_biguint(&mut self) -> BigUintTarget;
 
@@ -78,15 +78,24 @@ pub trait CircuitBuilderBiguint<F: RichField + Extendable<D>, const D: usize> {
 impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderBiguint<F, D>
     for CircuitBuilder<F, D>
 {
-    fn constant_biguint(&mut self, value: &BigUint) -> BigUintTarget {
+    fn constant_biguint(&mut self, value: &BigUint, min_limbs: usize) -> BigUintTarget {
         let limb_values = value.to_u32_digits();
-        let limbs = limb_values.iter().map(|&l| self.constant_u32(l)).collect();
+        let limbs: Vec<U32Target> = limb_values.iter().map(|&l| self.constant_u32(l)).collect();
 
-        BigUintTarget { limbs }
+        if limbs.len() >= min_limbs {
+            BigUintTarget { limbs }
+        } else {
+            let mut limbs = limbs;
+            for _ in limbs.len()..min_limbs {
+                limbs.push(self.zero_u32());
+            }
+
+            BigUintTarget { limbs }
+        }
     }
 
     fn zero_biguint(&mut self) -> BigUintTarget {
-        self.constant_biguint(&BigUint::zero())
+        self.constant_biguint(&BigUint::zero(), 0)
     }
 
     fn connect_biguint(&mut self, lhs: &BigUintTarget, rhs: &BigUintTarget) {
@@ -405,10 +414,10 @@ mod tests {
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
-        let x = builder.constant_biguint(&x_value);
-        let y = builder.constant_biguint(&y_value);
+        let x = builder.constant_biguint(&x_value, 0);
+        let y = builder.constant_biguint(&y_value, 0);
         let z = builder.sub_biguint(&x, &y);
-        let expected_z = builder.constant_biguint(&expected_z_value);
+        let expected_z = builder.constant_biguint(&expected_z_value, 0);
 
         builder.connect_biguint(&z, &expected_z);
 
@@ -461,8 +470,8 @@ mod tests {
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
-        let x = builder.constant_biguint(&x_value);
-        let y = builder.constant_biguint(&y_value);
+        let x = builder.constant_biguint(&x_value, 0);
+        let y = builder.constant_biguint(&y_value, 0);
         let cmp = builder.cmp_biguint(&x, &y);
         let expected_cmp = builder.constant_bool(x_value <= y_value);
 
@@ -491,12 +500,12 @@ mod tests {
         let pw = PartialWitness::new();
         let mut builder = CircuitBuilder::<F, D>::new(config);
 
-        let x = builder.constant_biguint(&x_value);
-        let y = builder.constant_biguint(&y_value);
+        let x = builder.constant_biguint(&x_value, 0);
+        let y = builder.constant_biguint(&y_value, 0);
         let (div, rem) = builder.div_rem_biguint(&x, &y);
 
-        let expected_div = builder.constant_biguint(&expected_div_value);
-        let expected_rem = builder.constant_biguint(&expected_rem_value);
+        let expected_div = builder.constant_biguint(&expected_div_value, 0);
+        let expected_rem = builder.constant_biguint(&expected_rem_value, 0);
 
         builder.connect_biguint(&div, &expected_div);
         builder.connect_biguint(&rem, &expected_rem);

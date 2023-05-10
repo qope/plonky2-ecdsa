@@ -140,7 +140,8 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
     }
 
     fn constant_nonnative<FF: PrimeField>(&mut self, x: FF) -> NonNativeTarget<FF> {
-        let x_biguint = self.constant_biguint(&x.to_canonical_biguint());
+        let num_limbs = Self::num_nonnative_limbs::<FF>();
+        let x_biguint = self.constant_biguint(&x.to_canonical_biguint(), num_limbs);
         self.biguint_to_nonnative(&x_biguint)
     }
 
@@ -197,7 +198,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
 
         let sum_expected = self.add_biguint(&a.value, &b.value);
 
-        let modulus = self.constant_biguint(&FF::order());
+        let modulus = self.constant_biguint(&FF::order(), 0);
         let mod_times_overflow = self.mul_biguint_by_bool(&modulus, overflow);
         let sum_actual = self.add_biguint(&sum.value, &mod_times_overflow);
         self.connect_biguint(&sum_expected, &sum_actual);
@@ -260,7 +261,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
             .iter()
             .fold(self.zero_biguint(), |a, b| self.add_biguint(&a, &b.value));
 
-        let modulus = self.constant_biguint(&FF::order());
+        let modulus = self.constant_biguint(&FF::order(), 0);
         let overflow_biguint = BigUintTarget {
             limbs: vec![overflow],
         };
@@ -298,7 +299,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         self.assert_bool(overflow);
 
         let diff_plus_b = self.add_biguint(&diff.value, &b.value);
-        let modulus = self.constant_biguint(&FF::order());
+        let modulus = self.constant_biguint(&FF::order(), 0);
         let mod_times_overflow = self.mul_biguint_by_bool(&modulus, overflow);
         let diff_plus_b_reduced = self.sub_biguint(&diff_plus_b, &mod_times_overflow);
         self.connect_biguint(&a.value, &diff_plus_b_reduced);
@@ -312,7 +313,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
         b: &NonNativeTarget<FF>,
     ) -> NonNativeTarget<FF> {
         let prod = self.add_virtual_nonnative_target::<FF>();
-        let modulus = self.constant_biguint(&FF::order());
+        let modulus = self.constant_biguint(&FF::order(), 0);
         let overflow = self.add_virtual_biguint_target(modulus.num_limbs());
 
         self.add_simple_generator(NonNativeMultiplicationGenerator::<F, D, FF> {
@@ -351,7 +352,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
     }
 
     fn neg_nonnative<FF: PrimeField>(&mut self, x: &NonNativeTarget<FF>) -> NonNativeTarget<FF> {
-        let zero_target = self.constant_biguint(&BigUint::zero());
+        let zero_target = self.constant_biguint(&BigUint::zero(), 0);
         let zero_ff = self.biguint_to_nonnative(&zero_target);
 
         self.sub_nonnative(&zero_ff, x)
@@ -371,9 +372,9 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
 
         let product = self.mul_biguint(&x.value, &inv_biguint);
 
-        let modulus = self.constant_biguint(&FF::order());
+        let modulus = self.constant_biguint(&FF::order(), 0);
         let mod_times_div = self.mul_biguint(&modulus, &div);
-        let one = self.constant_biguint(&BigUint::one());
+        let one = self.constant_biguint(&BigUint::one(), 0);
         let expected_product = self.add_biguint(&mod_times_div, &one);
         self.connect_biguint(&product, &expected_product);
 
@@ -386,7 +387,7 @@ impl<F: RichField + Extendable<D>, const D: usize> CircuitBuilderNonNative<F, D>
     /// Returns `x % |FF|` as a `NonNativeTarget`.
     fn reduce<FF: Field>(&mut self, x: &BigUintTarget) -> NonNativeTarget<FF> {
         let modulus = FF::order();
-        let order_target = self.constant_biguint(&modulus);
+        let order_target = self.constant_biguint(&modulus, 0);
         let value = self.rem_biguint(x, &order_target);
 
         NonNativeTarget {
